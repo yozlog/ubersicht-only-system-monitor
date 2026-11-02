@@ -1,0 +1,43 @@
+{
+  "top": 44,
+  "left": 20,
+  "width": 290,
+  "minHeight": 177,
+  "maxHeight": 177,
+  "refreshInterval": 5000,
+  "colors": {
+    "light": {
+      "background": "#ffffff",
+      "foreground": "#000000",
+      "backgroundOpacity": 0.25
+    },
+    "dark": {
+      "background": "#000000",
+      "foreground": "#ffffff",
+      "backgroundOpacity": 0.2
+    },
+    "accents": {
+      "cpu": "#329ee8",
+      "gpu": "#329ee8",
+      "memory": "#23b7b8",
+      "disk": "#dca212",
+      "network": "#329ee8",
+      "upload": "#f24b7d"
+    }
+  },
+  "fontFamily": [
+    "Input Mono",
+    "Fira Code",
+    "Menlo",
+    "monospace"
+  ],
+  "fontSize": 12,
+  "monitors": [
+    "cpu",
+    "gpu",
+    "memory",
+    "disk",
+    "network"
+  ],
+  "overview": true
+}
