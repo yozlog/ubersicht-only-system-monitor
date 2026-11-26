@@ -3,8 +3,11 @@ import { run } from 'uebersicht';
 
 const allPages = ['cpu', 'gpu', 'memory', 'disk', 'network'];
 const monitors = Array.isArray(config.monitors) ? [...new Set(config.monitors.filter(key => allPages.includes(key)))] : allPages;
-const pages = config.overview !== false && monitors.length ? ['overview', ...monitors] : monitors;
-const pageSignature = pages.join(',');
+const split = config.splitMonitors === true && monitors.length > 0;
+const horizontal = split && config.splitDirection === 'horizontal';
+const pages = split ? monitors : config.overview !== false && monitors.length ? ['overview', ...monitors] : monitors;
+const pageSignature = `${split ? 'split:' : ''}${pages.join(',')}`;
+const shows = (state, key) => split ? monitors.includes(key) : pages[state.page] === key;
 const titles = { overview: 'Overview', cpu: 'CPU', gpu: 'GPU', memory: 'Memory', disk: 'Disk', network: 'Network' };
 const defaultAccents = { cpu: '#329ee8', gpu: '#329ee8', memory: '#23b7b8', disk: '#dca212', network: '#329ee8', upload: '#f24b7d' };
 const accents = Object.fromEntries(Object.entries(defaultAccents).map(([key, fallback]) => {
@@ -38,15 +41,27 @@ function theme(mode, fg, bg, opacity) {
 }
 
 export const className = `
-  top: ${top}px; left: ${left}px; width: ${width}px;
-  min-height: ${minHeight}px; max-height: ${maxHeight}px;
-  box-sizing: border-box; padding: 16px 20px; border-radius: 16px;
-  overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain;
+  top: ${top}px; left: ${left}px; width: ${horizontal ? 'max-content' : `${width}px`};
   ${theme('light', '0, 0, 0', '255, 255, 255', .25)}
   @media (prefers-color-scheme: dark) { ${theme('dark', '255, 255, 255', '0, 0, 0', .2)} }
-  background: rgba(var(--bg), var(--opacity)); color: rgb(var(--fg));
+  color: rgb(var(--fg));
   font: ${fontSize}px/1.6 ${fontFamily};
   * { box-sizing: border-box; }
+  .tiles { display: flex; flex-direction: ${horizontal ? 'row' : 'column'}; gap: 12px; }
+  .tiles > section { ${horizontal ? `width: ${width}px;` : ''} }
+  section {
+    min-height: ${minHeight}px; max-height: ${maxHeight}px; flex-shrink: 0;
+    padding: 16px 20px; border-radius: 16px; background: rgba(var(--bg), var(--opacity));
+    overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain;
+    /* Changing an inherited variable forces WebKit to repaint scrollbar hover states. */
+    --monitor-scrollbar-thumb: transparent;
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+    &:hover { --monitor-scrollbar-thumb: rgba(var(--fg), .4); }
+    &::-webkit-scrollbar { width: 6px; background: transparent; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background: var(--monitor-scrollbar-thumb); border-radius: 3px; }
+  }
   header, nav, .reading, .meta, .process { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
   header { height: 24px; }
   h1 { font-size: ${textSize(14)}; font-weight: 500; margin: 0; display: flex; align-items: center; gap: 8px; }
@@ -89,14 +104,6 @@ export const className = `
   .overview-ring { width: 14px; height: 14px; flex-shrink: 0; }
   .overview-network { display: flex; gap: 8px; font-size: ${textSize(10)}; }
   .overview-warning { font-size: ${textSize(9)}; }
-  /* Changing an inherited variable forces WebKit to repaint scrollbar hover states. */
-  --monitor-scrollbar-thumb: transparent;
-  scrollbar-width: auto;
-  scrollbar-color: auto;
-  &:hover { --monitor-scrollbar-thumb: rgba(var(--fg), .4); }
-  &::-webkit-scrollbar { width: 6px; background: transparent; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: var(--monitor-scrollbar-thumb); border-radius: 3px; }
   @media (prefers-reduced-motion: reduce) { .meter > span { transition: none; } }
 `;
 
@@ -132,7 +139,7 @@ export const command = async dispatch => {
   collecting = true;
   try {
     const processMonitor = monitors.includes(activeProcesses) ? activeProcesses : 'none';
-    const output = await run(`PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" node ubersicht-only-system-monitor/collect.cjs --monitors=${monitors.join(',')} --processes=${processMonitor}`);
+    const output = await run(`PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" node ubersicht-only-system-monitor.widget/collect.cjs --monitors=${monitors.join(',')} --processes=${processMonitor}`);
     const data = JSON.parse(output);
     if (!finite(data.timestamp) || !data.errors) throw new Error('Invalid collection');
     dispatch({ type: 'sample', data });
@@ -143,7 +150,8 @@ export const command = async dispatch => {
 export const updateState = (event, state = initialState) => {
   state = currentState(state);
   if (event.type === 'processes') {
-    if (!['cpu', 'memory'].includes(event.kind) || pages[state.page] !== event.kind) return state;
+    if (!['cpu', 'memory'].includes(event.kind) || !shows(state, event.kind)) return state;
+    if (!event.open && state.processesOpen !== event.kind) return state;
     return { ...state, processesOpen: event.open ? event.kind : null, processesLoading: event.open,
       data: event.open ? { ...state.data, processes: null } : state.data };
   }
@@ -246,27 +254,23 @@ function Overview({ state }) {
   </div>;
 }
 
-export const render = (state, dispatch) => {
-  state = currentState(state);
-  activeProcesses = state.processesOpen && pages[state.page] === state.processesOpen && monitors.includes(state.processesOpen) ? state.processesOpen : null;
-  if (!pages.length) return <section aria-label="System Monitor"><header><h1>System Monitor</h1></header><div className="empty" role="status">No monitors enabled. Edit config.json.</div></section>;
-  const key = pages[state.page];
+function Tile({ state, dispatch, pageKey: key, paged }) {
   const metric = state.data[key];
   const accent = accents[key] || accents.cpu;
   const stale = state.failed || state.errors[key];
   const value = metric && metric.percent;
   const model = (metric && metric.model) || (state.data.cpu && state.data.cpu.model);
-  return <section aria-label="System Monitor" style={{ '--accent': accent }} tabIndex={0}
-    onMouseLeave={event => { if (event.currentTarget.matches(':focus')) event.currentTarget.blur(); }}
-    onKeyDown={event => {
+  return <section aria-label={`${titles[key]} monitor`} style={{ '--accent': accent }} {...(paged ? { tabIndex: 0,
+    onMouseLeave: event => { if (event.currentTarget.matches(':focus')) event.currentTarget.blur(); },
+    onKeyDown: event => {
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); changePage(state, dispatch, event.key === 'ArrowLeft' ? -1 : 1); }
       if (event.key === 'Escape' && event.target === event.currentTarget) event.currentTarget.blur();
-    }}>
-    <header><h1><span className="indicator" />{titles[key]}</h1><nav aria-label="Monitor pages">
+    } } : {})}>
+    <header><h1><span className="indicator" />{titles[key]}</h1>{paged && <nav aria-label="Monitor pages">
       <button aria-label="Previous monitor" disabled={pages.length === 1} onClick={() => changePage(state, dispatch, -1)}>←</button>
       <span className="muted">{state.page + 1}/{pages.length}</span>
       <button aria-label="Next monitor" disabled={pages.length === 1} onClick={() => changePage(state, dispatch, 1)}>→</button>
-    </nav></header>
+    </nav>}</header>
     {key === 'overview' ? <Overview state={state} /> : !metric ? <div className="empty" role="status">{state.sampled ? 'Monitor unavailable' : 'Loading System Monitor…'}</div> : key === 'network' ? <div>
       <div className="network-reading">
         {['download', 'upload'].map((field, i) => <div key={field} style={{ color: i ? accents.upload : accent }}>
@@ -286,4 +290,12 @@ export const render = (state, dispatch) => {
     </div>}
     {stale && key !== 'overview' && <div className="notice" role="status">{metric ? 'Stale reading · ' : ''}{state.failed ? 'Collection failed; retrying…' : 'Monitor unavailable; retrying…'}</div>}
   </section>;
+}
+
+export const render = (state, dispatch) => {
+  state = currentState(state);
+  activeProcesses = state.processesOpen && shows(state, state.processesOpen) && monitors.includes(state.processesOpen) ? state.processesOpen : null;
+  if (!pages.length) return <section aria-label="System Monitor"><header><h1>System Monitor</h1></header><div className="empty" role="status">No monitors enabled. Edit config.json.</div></section>;
+  if (split) return <div className="tiles">{monitors.map(key => <Tile key={key} state={state} dispatch={dispatch} pageKey={key} paged={false} />)}</div>;
+  return <Tile state={state} dispatch={dispatch} pageKey={pages[state.page]} paged />;
 };

@@ -5,6 +5,12 @@
   "minHeight": 177,
   "maxHeight": 177,
   "refreshInterval": 5000,
+  "monitors": ["cpu", "gpu", "memory", "disk", "network"],
+  "splitMonitors": false,
+  "splitDirection": "vertical",
+  "fontFamily": ["Input Mono", "Fira Code", "Menlo", "monospace"],
+  "fontSize": 12,
+  "overview": true,
   "colors": {
     "light": {
       "background": "#ffffff",
@@ -24,20 +30,5 @@
       "network": "#329ee8",
       "upload": "#f24b7d"
     }
-  },
-  "fontFamily": [
-    "Input Mono",
-    "Fira Code",
-    "Menlo",
-    "monospace"
-  ],
-  "fontSize": 12,
-  "monitors": [
-    "cpu",
-    "gpu",
-    "memory",
-    "disk",
-    "network"
-  ],
-  "overview": true
+  }
 }
