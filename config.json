@@ -5,6 +5,8 @@
   "minHeight": 177,
   "maxHeight": 177,
   "refreshInterval": 5000,
+  "splitMonitors": false,
+  "splitDirection": "vertical",
   "colors": {
     "light": {
       "background": "#ffffff",
@@ -25,19 +27,8 @@
       "upload": "#f24b7d"
     }
   },
-  "fontFamily": [
-    "Input Mono",
-    "Fira Code",
-    "Menlo",
-    "monospace"
-  ],
+  "fontFamily": ["Input Mono", "Fira Code", "Menlo", "monospace"],
   "fontSize": 12,
-  "monitors": [
-    "cpu",
-    "gpu",
-    "memory",
-    "disk",
-    "network"
-  ],
+  "monitors": ["cpu", "gpu", "memory", "disk", "network"],
   "overview": true
 }
