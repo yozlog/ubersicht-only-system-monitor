@@ -63,6 +63,8 @@ Merge these fields into your installed config.json, preserving position and size
   "fontSize": 12,
   "overview": true,
   "monitors": ["cpu", "gpu", "memory", "disk", "network"],
+  "splitMonitors": false,
+  "splitDirection": "vertical",
   "colors": {
     "light": {
       "background": "#ffffff",
@@ -87,6 +89,8 @@ Merge these fields into your installed config.json, preserving position and size
 ```
 
 - `monitors`: Enabled pages in switching order. Supported identifiers: `cpu`, `gpu`, `memory`, `disk`, `network`. The default enables all five. Duplicates and unknown identifiers are ignored; `[]` shows a no-monitors message. A missing or non-array value enables all five. The arrows are disabled only when a single detail page remains and Overview is off. Selection is retained across configuration changes if still enabled, otherwise the first enabled page is selected. Only enabled monitors are collected. Overview and detail pages share the same samples; hiding a monitor stops its queries.
+- `splitMonitors`: When `true`, every enabled monitor is shown at once as its own tile instead of a single paged card. Default `false`. Split mode has no arrows, page selection or Overview page (`overview` is ignored); each tile uses the configured `width`, `minHeight` and `maxHeight`. Only one Top processes list (CPU or Memory) can be open at a time.
+- `splitDirection`: Tile layout when `splitMonitors` is `true`: `"vertical"` (default) stacks tiles in a column; `"horizontal"` places them side by side in a row. Ignored when `splitMonitors` is `false`.
 - `fontFamily`: Ordered list of installed font names, or a single font name. The default list is shown above. Unsupported or empty names fall back to defaults. Fonts are not downloaded.
 - `fontSize`: Base size in pixels, from 8 to 24; default 12. Other text scales proportionally. Larger text may need a wider/taller card or scrolling.
 - `colors.light` / `colors.dark`: `background` sets the background, `foreground` sets text, and `backgroundOpacity` sets transparency. The active palette follows system appearance.
@@ -101,6 +105,8 @@ Colors accept `#RGB` or `#RRGGBB`; invalid values fall back to defaults. Save va
 Open `config.json` in the installed widget folder (default path: `~/Library/Application Support/Übersicht/widgets/ubersicht-only-system-monitor.widget/config.json`) and edit the `overview` field: `"overview": true` enables the compact Overview page before the individual monitors (default). Set it to `false` to keep only the detail pages. It uses the enabled `monitors` list and its order from the same file; an empty list still shows the no-monitors message. Save the file and Übersicht automatically reloads the settings.
 
 At the default 290 × 177px size and 12px base font, all five enabled items fit without scrolling. CPU, GPU, Memory and Disk show percentages with small usage rings on the right; Network shows download/upload rates. Colors follow `colors.accents`. Unavailable values show `—` with empty ring tracks, and stale readings are marked `!` with an explanatory tooltip. Overview contains no history charts or expandable lists.
+
+With `splitMonitors` enabled, Overview is not shown; see [Appearance and visible monitors](#appearance-and-visible-monitors).
 
 Fresh sessions start on Overview; an existing saved page is retained if still enabled. Use the arrows or keyboard to reach individual detail pages. A single enabled monitor still has two pages when Overview is enabled.
 
